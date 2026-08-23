@@ -1,0 +1,13 @@
+qdrant-client
+sentence-transformers
+fastapi
+uvicorn
+pypdf
+ragas
+datasets
+dspy-ai
+langgraph
+langchain
+mcp
+python-dotenv
+pytest
