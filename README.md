@@ -19,7 +19,24 @@ Most RAG demos stop at "it answers questions." This one measures whether it answ
 - [ ] **Phase 5 — Prompt injection defense**: Planted indirect injection in a retrieved document. Demonstrated attack, then one mitigation (untrusted-content tagging / output filtering), with before/after write-up.
 
 ## Architecture
-                 ┌─────────────┐
+
+```
+                     ┌─────────────┐
+   query ──────────▶ │   FastAPI    │
+                     │   endpoint   │
+                     └──────┬──────┘
+                            │
+                     ┌──────▼──────┐
+                     │  LangGraph   │
+                     │    agent     │
+                     └──┬───────┬──┘
+                        │       │
+              ┌─────────▼─┐   ┌─▼───────────┐
+              │  Retrieval │   │  arXiv /     │
+              │  tool      │   │  citation    │
+              │  (Qdrant)  │   │  tool (MCP)  │
+              └────────────┘   └──────────────┘
+```
 
 ## Tech stack
 
