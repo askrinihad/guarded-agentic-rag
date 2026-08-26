@@ -1,4 +1,12 @@
+"""
+Phase 1 - Ingestion
+Chunks a PDF, embeds each chunk, and upserts into a Qdrant collection.
 
+Run from the project root:
+    python src/ingestion/ingest.py
+"""
+
+import re
 import uuid
 from pathlib import Path
 
@@ -9,8 +17,8 @@ from sentence_transformers import SentenceTransformer
 
 PAPERS_DIR = Path("data/papers")
 COLLECTION_NAME = "guarded_rag_papers"
-CHUNK_SIZE = 500
-CHUNK_OVERLAP = 50
+CHUNK_SIZE = 500          # target characters per chunk (soft limit, respects sentence boundaries)
+OVERLAP_SENTENCES = 1     # trailing sentences carried into the next chunk
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
 
@@ -19,13 +27,29 @@ def extract_text(pdf_path: Path) -> str:
     return "\n".join(page.extract_text() or "" for page in reader.pages)
 
 
-def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP):
+def split_into_sentences(text: str) -> list[str]:
+    text = re.sub(r"\s+", " ", text).strip()
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    return [s.strip() for s in sentences if s.strip()]
+
+
+def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap_sentences: int = OVERLAP_SENTENCES) -> list[str]:
+    sentences = split_into_sentences(text)
     chunks = []
-    start = 0
-    while start < len(text):
-        end = start + chunk_size
-        chunks.append(text[start:end])
-        start += chunk_size - overlap
+    current = []
+    current_len = 0
+
+    for sentence in sentences:
+        if current_len + len(sentence) > chunk_size and current:
+            chunks.append(" ".join(current))
+            current = current[-overlap_sentences:] if overlap_sentences else []
+            current_len = sum(len(s) for s in current)
+        current.append(sentence)
+        current_len += len(sentence)
+
+    if current:
+        chunks.append(" ".join(current))
+
     return [c.strip() for c in chunks if c.strip()]
 
 
@@ -41,12 +65,15 @@ def main():
 
     client = QdrantClient(host="localhost", port=6333)
 
-    if not client.collection_exists(COLLECTION_NAME):
-        client.create_collection(
-            collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
-        )
-        print(f"Created collection '{COLLECTION_NAME}'")
+    if client.collection_exists(COLLECTION_NAME):
+        client.delete_collection(COLLECTION_NAME)
+        print(f"Deleted existing collection '{COLLECTION_NAME}' (re-ingesting fresh)")
+
+    client.create_collection(
+        collection_name=COLLECTION_NAME,
+        vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
+    )
+    print(f"Created collection '{COLLECTION_NAME}'")
 
     all_points = []
     for pdf_path in pdf_files:

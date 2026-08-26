@@ -7,7 +7,7 @@ from transformers import pipeline
 COLLECTION_NAME = "guarded_rag_papers"
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 GENERATION_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
-TOP_K = 4
+TOP_K = 6
 
 app = FastAPI(title="Guarded Agentic RAG - Phase 1")
 
