@@ -8,14 +8,14 @@ Most RAG demos stop at "it answers questions." This one measures whether it answ
 
 ## Status
 
-🚧 In progress — Phases 1-3 complete, see roadmap below.
+🚧 In progress — Phases 1-4 complete, see roadmap below.
 
 ## Roadmap
 
 - [x] **Phase 1 — RAG core**: Chunked + embedded the IEEE CASE 2025 paper into Qdrant. FastAPI endpoint for retrieval + generation (local Qwen2.5-1.5B-Instruct).
 - [x] **Phase 2 — Evaluation**: 20-question hand-verified golden dataset. Baseline eval exposed two real failure modes (mid-sentence fact truncation, flattened tables). Fixed with sentence-aware chunking + wider top-k retrieval. Faithfulness improved 0.85 → 1.00. See Results below.
 - [x] **Phase 3 — Prompt optimization**: DSPy-optimized prompt vs. hand-written baseline, evaluated on a 5-question held-out test set. Result: DSPy underperformed the hand-written prompt (see Results below) — a genuine, documented negative finding.
-- [ ] **Phase 4 — Agentic layer**: LangGraph agent with a retrieval tool + a second tool (arXiv search / citation formatter), exposed as MCP servers where possible.
+- [x] **Phase 4 — Agentic layer**: LangGraph agent with retrieval + arXiv search tools. First attempt (native tool-calling via create_react_agent) failed silently on the small local model; a manual ReAct loop succeeded after several debugging rounds. See Results below.
 - [ ] **Phase 5 — Prompt injection defense**: Planted indirect injection in a retrieved document. Demonstrated attack, then one mitigation (untrusted-content tagging / output filtering), with before/after write-up.
 
 ## Architecture
@@ -121,5 +121,47 @@ reaching for automatic prompt optimization as a default, particularly on
 small/local models with limited context-following capacity.
 
 Full raw outputs: `prompt_opt/results.json`.
+
+
+
+## Phase 4 finding: native tool-calling failed, manual ReAct loop succeeded
+
+Built an agent with two tools (search the ingested paper; search arXiv for
+related work) using `Qwen2.5-1.5B-Instruct` as the reasoning model.
+
+**First attempt** used LangGraph's prebuilt `create_react_agent`, which
+expects the LLM to natively support structured tool-calling. The model
+never called a tool at all - it skipped straight to a hallucinated answer,
+inventing a nonexistent paper ("Continual Learning with Deep Networks" by
+Yann LeCun, 2015 - this paper does not exist).
+
+**Fix**: rewrote the agent as a manual ReAct loop using LangGraph's
+`StateGraph` directly - prompting the model to state its intent in a
+simple parseable text format (`ACTION: tool_name[query]`) instead of
+relying on native tool-calling. This is more robust for small models but
+needed several rounds of hardening against real failure modes encountered
+along the way:
+- the model dropping the literal word "ACTION:" from its output
+- the model switching between `[...]` and `(...)` bracket styles
+- the model querying `retrieve_paper_context` with an arXiv paper *title*
+  it had just read, instead of a query about its own paper's topic
+- a state-mutation bug where a fallback message set inside a LangGraph
+  conditional-edge function silently failed to persist (only node return
+  values update graph state, not router-function side effects)
+
+**Final result**, after prompting the model to keep the original question
+in view and hardening the parser against format drift: the agent correctly
+called both tools in sequence, retrieved its own paper's real method
+(the similarity-based knowledge base, not a hallucination), searched
+arXiv, and terminated cleanly via `finish`.
+
+**Known remaining limitation**: the final answer under-uses what it
+retrieved - it confirms "continual learning is used" without stating the
+specific mechanism, even though that detail was present in its own tool
+observation. A larger model would likely synthesize this; the 1.5B model
+here reliably executes the tool-use loop but doesn't reliably reason over
+what the tools returned.
+
+Full run traces documented in commit history for `src/agent/agent.py`.
 
 ## Project structure
