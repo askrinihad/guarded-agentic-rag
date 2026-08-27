@@ -8,13 +8,13 @@ Most RAG demos stop at "it answers questions." This one measures whether it answ
 
 ## Status
 
-🚧 In progress — Phases 1-2 complete, see roadmap below.
+🚧 In progress — Phases 1-3 complete, see roadmap below.
 
 ## Roadmap
 
 - [x] **Phase 1 — RAG core**: Chunked + embedded the IEEE CASE 2025 paper into Qdrant. FastAPI endpoint for retrieval + generation (local Qwen2.5-1.5B-Instruct).
 - [x] **Phase 2 — Evaluation**: 20-question hand-verified golden dataset. Baseline eval exposed two real failure modes (mid-sentence fact truncation, flattened tables). Fixed with sentence-aware chunking + wider top-k retrieval. Faithfulness improved 0.85 → 1.00. See Results below.
-- [ ] **Phase 3 — Prompt optimization**: DSPy-optimized prompt vs. hand-written baseline, evaluated on the same golden dataset.
+- [x] **Phase 3 — Prompt optimization**: DSPy-optimized prompt vs. hand-written baseline, evaluated on a 5-question held-out test set. Result: DSPy underperformed the hand-written prompt (see Results below) — a genuine, documented negative finding.
 - [ ] **Phase 4 — Agentic layer**: LangGraph agent with a retrieval tool + a second tool (arXiv search / citation formatter), exposed as MCP servers where possible.
 - [ ] **Phase 5 — Prompt injection defense**: Planted indirect injection in a retrieved document. Demonstrated attack, then one mitigation (untrusted-content tagging / output filtering), with before/after write-up.
 
@@ -80,5 +80,46 @@ docker run -d --name qdrant-guarded-rag -p 6333:6333 -p 6334:6334 -v qdrant_stor
 **The fix**: rewrote chunking to group whole sentences instead of slicing at raw character offsets (`src/ingestion/ingest.py`), and increased retrieval from top-4 to top-6 chunks (`src/api/main.py`). Re-running the same 20 questions against the rebuilt index eliminated all three faithfulness failures.
 
 **Known remaining gap**: the table-flattening problem is only partially addressed by wider retrieval — a proper fix would need structure-aware extraction for tables specifically, not just better sentence splitting. Candidate for a future pass.
+
+
+
+## Phase 3 finding: DSPy underperformed the hand-written prompt
+
+Tested whether DSPy's `BootstrapFewShot` optimizer could beat the hand-written
+prompt in `src/api/main.py`, using a 15-question train / 5-question held-out
+test split of the golden dataset, with `Qwen2.5-1.5B-Instruct` as both the
+generator and the model being optimized.
+
+| | Baseline (hand-written prompt) | DSPy-optimized prompt |
+|---|---|---|
+| Avg. word-overlap score (5 test questions) | 0.416 | 0.224 |
+
+DSPy scored lower, but the raw number understates what's actually going on -
+inspecting the five individual answers showed a mixed picture:
+
+- **2 of 5** DSPy answers were factually correct but more concise than the
+  reference wording, and got penalized by the (crude) word-overlap metric
+  for it - not a real quality problem, a metric artifact.
+- **1 of 5** came back as an empty string - a genuine generation failure,
+  likely related to the added few-shot examples increasing prompt length
+  on a small 1.5B model.
+- **1 of 5** was a confirmed hallucination: the optimized prompt produced an
+  answer about "satellite imagery," "remote sensing," and "multiple
+  languages" for a future-work question - none of which appear anywhere in
+  the source paper. The actual future work section discusses expanding to
+  new species and ontology-based reasoning, not remote sensing or language
+  support.
+
+**Conclusion**: few-shot prompt optimization, applied without adjustment to
+a small local model, traded groundedness for pattern-matching against the
+optimizer's own scoring signal - it optimized toward matching reference
+*wording*, not toward staying faithful to the source document. The
+hand-written direct-instruction prompt was more reliable for this model
+size, even though it wasn't automatically tuned. This is a genuine,
+documented negative result, not a failed experiment - worth knowing before
+reaching for automatic prompt optimization as a default, particularly on
+small/local models with limited context-following capacity.
+
+Full raw outputs: `prompt_opt/results.json`.
 
 ## Project structure

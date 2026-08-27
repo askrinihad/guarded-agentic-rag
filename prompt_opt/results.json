@@ -1,0 +1,66 @@
+{
+  "baseline": [
+    {
+      "id": "q08",
+      "question": "What existing system is the proposed model compared against as a baseline?",
+      "answer": "Pl@ntNet API",
+      "score": 0.25
+    },
+    {
+      "id": "q09",
+      "question": "What GPU was used to run the experiments?",
+      "answer": "An NVIDIA RTX A4000 GPU",
+      "score": 0.45454545454545453
+    },
+    {
+      "id": "q10",
+      "question": "What dataset was used to fine-tune the ViT-L/14 transformer in the first stage?",
+      "answer": "The Pl@ntNet-300K dataset was used to fine-tune the ViT-L/14 transformer in the first stage.",
+      "score": 0.6666666666666666
+    },
+    {
+      "id": "q15",
+      "question": "What role does expert validation play in the framework?",
+      "answer": "Expert validation plays a crucial role in the framework by ensuring that the knowledge base continues to evolve and improve. It allows experts to assign appropriate species labels to newly encountered images based on their detailed observations and expertise.",
+      "score": 0.4444444444444444
+    },
+    {
+      "id": "q20",
+      "question": "What future work does the paper propose to enhance the framework's resilience and capabilities?",
+      "answer": "The paper proposes future work to enhance the framework's resilience and capabilities through several avenues:\n\n1. **Incremental Learning Performance**: Further improvements in incremental learning algorithms to handle larger class sizes and diverse data distributions.\n\n2. **Robotic Platform Integration**: Development of more advanced robotic platforms capable of handling complex environments and tasks efficiently.\n\n3. **Dynamic Updates to Knowledge Base**: Implementation of mechanisms to dynamically update the knowledge base based on real-time sensor data and user feedback.",
+      "score": 0.2619047619047619
+    }
+  ],
+  "optimized": [
+    {
+      "id": "q08",
+      "question": "What existing system is the proposed model compared against as a baseline?",
+      "answer": "Pl@ntNet API",
+      "score": 0.25
+    },
+    {
+      "id": "q09",
+      "question": "What GPU was used to run the experiments?",
+      "answer": "",
+      "score": 0.0
+    },
+    {
+      "id": "q10",
+      "question": "What dataset was used to fine-tune the ViT-L/14 transformer in the first stage?",
+      "answer": "Pl@ntNet-300K dataset",
+      "score": 0.3333333333333333
+    },
+    {
+      "id": "q15",
+      "question": "What role does expert validation play in the framework?",
+      "answer": "Expert validation plays a crucial role in ensuring the accuracy and stability of the model's predictions. By subjecting predictions to expert scrutiny, the framework refines the classification process, correcting any inaccuracies and assigning appropriate labels to newly encountered species. This iterative refinement helps maintain consistent and reliable classification outcomes, enhancing overall model performance and adaptability to real-world scenarios.",
+      "score": 0.2962962962962963
+    },
+    {
+      "id": "q20",
+      "question": "What future work does the paper propose to enhance the framework's resilience and capabilities?",
+      "answer": "Future work could involve integrating more sophisticated feature engineering techniques to further improve the model's performance on complex and varied plant species. Additionally, exploring ways to incorporate external data sources, such as satellite imagery or remote sensing data, could provide valuable information for identifying plants in various environments. Furthermore, developing a more comprehensive understanding of the impact of different types of noise and outliers on the model's predictions would help in designing more robust algorithms. Lastly, extending the framework to cover multiple languages and dialects could broaden its applicability in international settings.",
+      "score": 0.23809523809523808
+    }
+  ]
+}
