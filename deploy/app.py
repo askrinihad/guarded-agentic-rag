@@ -111,4 +111,7 @@ with gr.Blocks(title="Guarded Agentic RAG") as demo:
     )
 
 if __name__ == "__main__":
-    demo.launch()
+    # Render (and most PaaS hosts) assign a port via the PORT env var and
+    # require binding to 0.0.0.0, not localhost, to be reachable externally.
+    port = int(os.environ.get("PORT", 7860))
+    demo.launch(server_name="0.0.0.0", server_port=port)
