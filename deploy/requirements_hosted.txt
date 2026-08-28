@@ -1,0 +1,4 @@
+gradio
+qdrant-client
+groq
+requests
