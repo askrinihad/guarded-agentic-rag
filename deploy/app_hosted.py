@@ -32,6 +32,26 @@ COLLECTION_NAME = "guarded_rag_papers"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 GROQ_MODEL = "openai/gpt-oss-20b"
 TOP_K = 6
+MIN_SCORE = 0.15  # below this, retrieval found nothing genuinely relevant
+
+# Fixed facts about the paper, always available to the model.
+#
+# These are handled outside retrieval deliberately. Dense embedding search
+# maps queries by topical gist, and questions like "who wrote this paper"
+# are topically about authorship - which doesn't match content that is
+# topically about plant identification, even when the author names are
+# literally present in it. Measured: "who wrote the paper" returned a top
+# similarity score of 0.05, i.e. no meaningful match anywhere in the corpus.
+# Fixed metadata belongs in the prompt, not the vector store.
+PAPER_METADATA = (
+    "Paper: 'A Knowledge-Driven Incremental Learning Framework for Automating "
+    "and Enhancing Plant Identification in Airports'\n"
+    "Authors: Nihad Askri, Ferhat Attal, Abdelghani Chibani, Karim Djouani, "
+    "Ilies Chibane, Reda Belaiche, Yacine Amirat\n"
+    "Affiliation: Univ Paris Est Creteil, LISSI, F-94400 Vitry, France\n"
+    "Venue: IEEE CASE 2025\n"
+    "Funding: OLGA H2020 European project"
+)
 
 QDRANT_URL = os.environ["QDRANT_URL"].strip()
 QDRANT_API_KEY = os.environ["QDRANT_API_KEY"].strip()
@@ -66,19 +86,27 @@ def embed(text: str) -> list[float]:
 
 
 def retrieve(question: str, top_k: int = TOP_K) -> list[str]:
+    """Retrieve relevant chunks, discarding matches below MIN_SCORE.
+
+    Without the threshold, a query with no good match still returns the
+    six least-bad chunks - which then get presented to the model as if
+    they were relevant context. Filtering lets the system distinguish
+    'the paper does not cover this' from 'here is loosely related text'.
+    """
     query_vector = embed(question)
     results = qdrant.query_points(
         collection_name=COLLECTION_NAME, query=query_vector, limit=top_k
     ).points
-    return [point.payload["text"] for point in results]
+    return [p.payload["text"] for p in results if p.score >= MIN_SCORE]
 
 
 def build_prompt(question: str, chunks: list[str]) -> str:
     context = "\n\n".join(f"[Excerpt {i+1}]\n{c}" for i, c in enumerate(chunks))
     return (
-        "Answer the question using only the excerpts below. "
-        "If the answer isn't in the excerpts, say you don't know.\n\n"
-        f"{context}\n\n"
+        "Answer the question using only the paper metadata and excerpts "
+        "below. If the answer isn't there, say you don't know.\n\n"
+        f"PAPER METADATA:\n{PAPER_METADATA}\n\n"
+        f"EXCERPTS FROM THE PAPER:\n{context}\n\n"
         f"Question: {question}\n"
         "Answer:"
     )
@@ -94,7 +122,21 @@ def answer_question(question: str, show_chunks: bool):
         return f"Retrieval failed: {e}", ""
 
     if not chunks:
-        return "No relevant content found in the paper.", ""
+        # Retrieval found nothing above the relevance threshold - but the
+        # metadata may still answer the question, so try generation anyway
+        # with metadata only rather than refusing outright.
+        prompt = build_prompt(question, [])
+        try:
+            completion = groq_client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0,
+                max_tokens=400,
+            )
+            answer = (completion.choices[0].message.content or "").strip()
+            return answer or "I don't have information about that in this paper.", ""
+        except Exception as e:
+            return f"Generation failed: {e}", ""
 
     prompt = build_prompt(question, chunks)
 
