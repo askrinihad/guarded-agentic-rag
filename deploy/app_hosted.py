@@ -188,7 +188,9 @@ with gr.Blocks(title="Guarded Agentic RAG") as demo:
         value=False,
     )
 
-    answer_output = gr.Textbox(label="Answer", lines=8)
+    # Markdown, not Textbox - the model returns Markdown formatting
+    # (**bold**, numbered lists), which a Textbox would show as raw asterisks.
+    answer_output = gr.Markdown(label="Answer")
     chunks_output = gr.Markdown()
 
     submit_btn.click(
