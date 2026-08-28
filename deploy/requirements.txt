@@ -1,0 +1,4 @@
+gradio
+qdrant-client
+sentence-transformers
+groq
