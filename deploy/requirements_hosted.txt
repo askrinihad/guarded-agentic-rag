@@ -1,4 +1,4 @@
 gradio
 qdrant-client
 groq
-requests
+huggingface_hub

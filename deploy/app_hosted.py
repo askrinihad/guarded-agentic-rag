@@ -24,13 +24,12 @@ Environment variables required:
 import os
 
 import gradio as gr
-import requests
 from groq import Groq
+from huggingface_hub import InferenceClient
 from qdrant_client import QdrantClient
 
 COLLECTION_NAME = "guarded_rag_papers"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-HF_EMBED_URL = f"https://api-inference.huggingface.co/models/{EMBEDDING_MODEL}"
 GROQ_MODEL = "openai/gpt-oss-20b"
 TOP_K = 6
 
@@ -41,6 +40,7 @@ HF_TOKEN = os.environ["HF_TOKEN"].strip()
 
 qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
+hf_client = InferenceClient(token=HF_TOKEN)
 
 
 def embed(text: str) -> list[float]:
