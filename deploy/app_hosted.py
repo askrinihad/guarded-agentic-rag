@@ -44,28 +44,23 @@ hf_client = InferenceClient(token=HF_TOKEN)
 
 
 def embed(text: str) -> list[float]:
-    """Get a 384-dim embedding from the HF Inference API.
+    """Get a 384-dim embedding via the official HF client.
 
-    Uses the feature-extraction pipeline, which returns the sentence
-    embedding for this model. Raises on API errors so failures surface
-    clearly rather than silently returning bad vectors.
+    Uses InferenceClient rather than a hardcoded URL - Hugging Face has
+    migrated their inference infrastructure, and the client handles
+    endpoint routing internally rather than depending on a URL that
+    may change.
     """
-    response = requests.post(
-        HF_EMBED_URL,
-        headers={"Authorization": f"Bearer {HF_TOKEN}"},
-        json={"inputs": text, "options": {"wait_for_model": True}},
-        timeout=30,
-    )
-    response.raise_for_status()
-    vector = response.json()
+    result = hf_client.feature_extraction(text, model=EMBEDDING_MODEL)
 
-    # The feature-extraction endpoint may return either a flat vector or a
-    # nested list depending on input shape - normalise to a flat list.
-    if isinstance(vector, list) and vector and isinstance(vector[0], list):
+    vector = result.tolist() if hasattr(result, "tolist") else list(result)
+
+    # Normalise nested output to a flat 384-dim vector
+    if vector and isinstance(vector[0], list):
         vector = vector[0]
 
-    if not isinstance(vector, list) or len(vector) != 384:
-        raise ValueError(f"Unexpected embedding shape from HF API: {type(vector)}")
+    if len(vector) != 384:
+        raise ValueError(f"Unexpected embedding dimension: {len(vector)}")
 
     return vector
 
