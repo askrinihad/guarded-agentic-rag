@@ -53,6 +53,7 @@ PDF → sentence-aware chunking → embedding (Qdrant) → cosine-similarity ret
 | Embeddings | sentence-transformers (`all-MiniLM-L6-v2`) |
 | Generation | Qwen2.5-1.5B-Instruct (local) |
 | Agent orchestration | LangGraph |
+| Tool protocol | MCP (Model Context Protocol) |
 | Prompt optimization | DSPy |
 | Evaluation | Custom RAGAS-style pipeline (LLM-as-judge + embedding metrics) |
 | Serving | FastAPI |
